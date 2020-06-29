@@ -3,24 +3,31 @@
 import tensorflow as tf
 from tensorflow import keras
 import datasets
+import os
 
 
-ptb = datasets.PTB()
-ptb_char_train = ptb.char_train
-ptb_char_valid = ptb.char_valid
-ptb_word_train = ptb.word_train
-ptb_word_valid = ptb.word_valid
-ptb_word_test = ptb.word_test
+ptb_char_train = datasets.Dataset("ptb.char.train").data
+ptb_char_valid = datasets.Dataset("ptb.char.valid").data
+ptb_word_train = datasets.Dataset("ptb.train").data
+ptb_word_valid = datasets.Dataset("ptb.valid").data
+ptb_word_test = datasets.Dataset("ptb.test").data
+print(ptb_char_train[0:100])
+print(ptb_char_valid[0:100])
+print(ptb_word_train[0:100])
+print(ptb_word_valid[0:100])
+print(ptb_word_test[0:100])
 
-wikitext2 = datasets.Wikitext2()
-wikitext2_train = wikitext2.train
-wikitext2_valid = wikitext2.valid
-wikitext2_test = wikitext2.test
 
-enwik9 = datasets.Enwik9()
-enwik9_train = enwik9.enwik9_train
-enwik9_valid = enwik9.enwik9_valid
-enwik9_test = enwik9.enwik9_test
+wikitext2_train = datasets.Dataset("wiki.train").data
+wikitext2_valid = datasets.Dataset("wiki.valid").data
+wikitext2_test = datasets.Dataset("wiki.test").data
+print(wikitext2_train[0:100])
+print(wikitext2_valid[0:100])
+print(wikitext2_test[0:100])
+
+enwik9_train = datasets.Dataset("enwik.train", os.path.join("C:\\", "Users", "Harry", ".keras", "datasets")).data
+enwik9_valid = datasets.Dataset("enwik.valid", os.path.join("C:\\", "Users", "Harry", ".keras", "datasets")).data
+enwik9_test = datasets.Dataset("enwik.test", os.path.join("C:\\", "Users", "Harry", ".keras", "datasets")).data
 print(enwik9_train[0:100])
 print(enwik9_valid[0:100])
 print(enwik9_test[0:100])

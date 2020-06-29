@@ -3,90 +3,60 @@ import tensorflow as tf
 import requests
 import zipfile
 import io
+import numpy as np
 
 # by default every dataset class downloads the data
-
-class PTB:
-
-    def __init__(self, task=None, local=False):
-        # local dataset file paths
-        ptb_char_train_path = os.path.join("datasets", "ptb", "ptb.char.train.txt")
-        ptb_char_valid_path = os.path.join("datasets", "ptb", "ptb.char.valid.txt")
-        ptb_word_train_path = os.path.join("datasets", "ptb", "ptb.train.txt")
-        ptb_word_valid_path = os.path.join("datasets", "ptb", "ptb.valid.txt")
-        ptb_word_test_path = os.path.join("datasets", "ptb", "ptb.test.txt")
-
-        if not local:
-            ptb_char_train_path = tf.keras.utils.get_file("ptb.char.train.txt", "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.char.train.txt")
-            ptb_char_valid_path = tf.keras.utils.get_file("ptb.char.valid.txt", "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.char.valid.txt")
-            ptb_word_train_path = tf.keras.utils.get_file("ptb.train.txt", "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.train.txt")
-            ptb_word_valid_path = tf.keras.utils.get_file("ptb.valid.txt", "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.valid.txt")
-            ptb_word_test_path = tf.keras.utils.get_file("ptb.test.txt", "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.test.txt")
-
-        if not task:
-            self.char_train = read_file(ptb_char_train_path)
-            self.char_valid = read_file(ptb_char_valid_path)
-            self.word_train = read_file(ptb_word_train_path)
-            self.word_valid = read_file(ptb_word_valid_path)
-            self.word_test = read_file(ptb_word_test_path)
-        elif task == "char":
-            self.char_train = read_file(ptb_char_train_path)
-            self.char_valid = read_file(ptb_char_valid_path)
-        elif task == "word":
-            self.word_train = read_file(ptb_word_train_path)
-            self.word_valid = read_file(ptb_word_valid_path)
-            self.word_test = read_file(ptb_word_test_path)
+fname_to_url = {
+    "ptb.char.train": "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.char.train.txt",
+    "ptb.char.valid": "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.char.valid.txt",
+    "ptb.train": "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.train.txt",
+    "ptb.valid": "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.valid.txt",
+    "ptb.test": "https://raw.githubusercontent.com/tomsercu/lstm/master/data/ptb.test.txt",
+    "wikitext-2-v1": "https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip",
+    "enwik9": "http://mattmahoney.net/dc/enwik9.zip"
+}
 
 
-
-class Wikitext2:
-
-    def __init__(self, local=False):
-        # local file paths
-        wikitext2_train_path = os.path.join("datasets", "wikitext-2-v1", "wikitext-2", "wiki.train.tokens")
-        wikitext2_valid_path = os.path.join("datasets", "wikitext-2-v1", "wikitext-2", "wiki.valid.tokens")
-        wikitext2_test_path = os.path.join("datasets", "wikitext-2-v1", "wikitext-2", "wiki.test.tokens")
-
-        if not local:
-            wikitext2_unzipped = tf.keras.utils.get_file("wikitext-2-v1", "https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip",
-                                                         extract=True, archive_format='zip')
-            wikitext2_unzipped = wikitext2_unzipped.replace("\\wikitext-2-v1", '') # this is because the extracted folder name is different than zipped folder
-            wikitext2_train_path = os.path.join(wikitext2_unzipped, "wikitext-2", "wiki.train.tokens")
-            wikitext2_valid_path = os.path.join(wikitext2_unzipped, "wikitext-2", "wiki.valid.tokens")
-            wikitext2_test_path = os.path.join(wikitext2_unzipped, "wikitext-2", "wiki.test.tokens")
-
-        self.train = read_file(wikitext2_train_path)
-        self.valid = read_file(wikitext2_valid_path)
-        self.test = read_file(wikitext2_test_path)
-
-
-class Enwik9:
-
-    def __init__(self, local=False):
-        # local file path
-        enwik9_path = os.path.join("datasets", "enwik9", "enwik9")
-
-        if not local:
+class Dataset:
+    def __init__(self, fname, f_dest=""):
+        if "ptb" in fname:
+            self.data = self.__read_file(tf.keras.utils.get_file(fname + ".txt", fname_to_url[fname]))
+        elif "wiki" in fname:
+            wikitext2_unzipped = tf.keras.utils.get_file("wikitext-2-v1", fname_to_url["wikitext-2-v1"], extract=True, archive_format='zip')
+            wikitext2_unzipped = wikitext2_unzipped.replace("\\wikitext-2-v1", '')  # this is because the extracted folder name is different than zipped folder
+            self.data = self.__read_file(os.path.join(wikitext2_unzipped, "wikitext-2", fname + ".tokens"))
+        elif "enwik" in fname:
             # change file destination if desire to download it somewhere else
-            file_dest = os.path.join("C:\\", "Users", "harry", ".keras", "datasets")
+            file_dest = os.path.join(f_dest)
             enwik9_path = os.path.join(file_dest, "enwik9")
+            # check if file not already exists
+            print(enwik9_path)
             if not os.path.isfile(enwik9_path):
                 zipfile.ZipFile(
-                    io.BytesIO(requests.get("http://mattmahoney.net/dc/enwik9.zip", stream=True).content)).extractall(file_dest)
+                    io.BytesIO(requests.get(fname_to_url["enwik9"], stream=True).content)).extractall(file_dest)
 
-        self.enwik9_train, self.enwik9_valid, self.enwik9_test = self.__split_training_data(read_file(enwik9_path))
+            train_offset = 9*10**7
+            valid_offset = train_offset + 5*10**6
+            test_offset = valid_offset + 5*10**6
+            enwik = self.__read_file(enwik9_path)
+            if "train" in fname:
+                self.data = enwik[:train_offset]  # first 90 million for training
+            elif "valid" in fname:
+                self.data = enwik[train_offset: valid_offset]  # 5 million for valid
+            elif "test" in fname:
+                self.data = enwik[valid_offset: test_offset]  # 5 million for test
 
-    def __split_training_data(self, enwik9):
-        train_offset = 9*10**7
-        valid_offset = train_offset + 5*10**6
-        test_offset = valid_offset + 5*10**6
-        enwik9_train = enwik9[:train_offset] # first 90 million for training
-        enwik9_valid = enwik9[train_offset: valid_offset] # 5 million for valid
-        enwik9_test = enwik9[valid_offset: test_offset] # 5 million for test
+        self.char2idx = {u:i for i,u in enumerate(sorted(set(self.data)))}
+        self.idx2char = np.array(len(self.char2idx))
 
-        return enwik9_train, enwik9_valid, enwik9_test
+    def convert_text_to_int(self):
+        self.data = np.array([self.char2idx[c] for c in self.data])
+        return self.data
 
-def read_file(path):
-    with open(path, encoding='utf8') as fo:
-        text = fo.read()
-    return text.split()  # remove whitespaces
+    def convert_to_tensor_dataset(self):
+        self.data = tf.data.Dataset.from_tensor_slices(self.data)
+
+    def __read_file(self, path):
+        with open(path, encoding='utf8') as fo:
+            text = fo.read()
+        return text.split()  # remove whitespaces
