@@ -30,7 +30,6 @@ class Dataset:
             file_dest = os.path.join(f_dest)
             enwik9_path = os.path.join(file_dest, "enwik9")
             # check if file not already exists
-            print(enwik9_path)
             if not os.path.isfile(enwik9_path):
                 zipfile.ZipFile(
                     io.BytesIO(requests.get(fname_to_url["enwik9"], stream=True).content)).extractall(file_dest)
@@ -55,6 +54,20 @@ class Dataset:
 
     def convert_to_tensor_dataset(self):
         self.data = tf.data.Dataset.from_tensor_slices(self.data)
+        return self.data
+
+    def batch(self, batch_size, drop_remainder):
+        self.data = self.data.batch(batch_size, drop_remainder=drop_remainder)
+        return self.data
+
+    def shuffle(self, buffer_size, seed=None, reshuffle_each_iteration=None):
+        self.data = self.data.shuffle(buffer_size, seed=seed, reshuffle_each_iteration=reshuffle_each_iteration)
+        return self.data
+
+    def split_input_target(chunk):
+        input_text = chunk[:-1]
+        target_text = chunk[1:]
+        return input_text, target_text
 
     def __read_file(self, path):
         with open(path, encoding='utf8') as fo:
