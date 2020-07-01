@@ -45,31 +45,36 @@ class Dataset:
             elif "test" in fname:
                 self.data = enwik[valid_offset: test_offset]  # 5 million for test
 
-        self.char2idx = {u:i for i,u in enumerate(sorted(set(self.data)))}
-        self.idx2char = np.array(len(self.char2idx))
+        vocab = sorted(set(self.data))
+        self.char2idx = {u:i for i,u in enumerate(vocab)}
+        self.idx2char = np.array(vocab)
 
     def convert_text_to_int(self):
         self.data = np.array([self.char2idx[c] for c in self.data])
-        return self.data
+        return self
 
     def convert_to_tensor_dataset(self):
         self.data = tf.data.Dataset.from_tensor_slices(self.data)
-        return self.data
+        return self
 
     def batch(self, batch_size, drop_remainder):
         self.data = self.data.batch(batch_size, drop_remainder=drop_remainder)
-        return self.data
+        return self
 
     def shuffle(self, buffer_size, seed=None, reshuffle_each_iteration=None):
         self.data = self.data.shuffle(buffer_size, seed=seed, reshuffle_each_iteration=reshuffle_each_iteration)
-        return self.data
+        return self
 
-    def split_input_target(chunk):
-        input_text = chunk[:-1]
-        target_text = chunk[1:]
-        return input_text, target_text
+    def map(self, function):
+        self.data = self.data.map(function)
+        return self
 
     def __read_file(self, path):
         with open(path, encoding='utf8') as fo:
             text = fo.read()
         return text.split()  # remove whitespaces
+
+def split_input_target(chunk):
+    input_text = chunk[:-1]
+    target_text = chunk[1:]
+    return input_text, target_text
