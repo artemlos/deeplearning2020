@@ -19,32 +19,7 @@ fname_to_url = {
 
 class Dataset:
     def __init__(self, fname, f_dest=""):
-        if "ptb" in fname:
-            self.data = self.__read_file(tf.keras.utils.get_file(fname + ".txt", fname_to_url[fname]))
-        elif "wiki" in fname:
-            wikitext2_unzipped = tf.keras.utils.get_file("wikitext-2-v1", fname_to_url["wikitext-2-v1"], extract=True, archive_format='zip')
-            wikitext2_unzipped = wikitext2_unzipped.replace("\\wikitext-2-v1", '')  # this is because the extracted folder name is different than zipped folder
-            self.data = self.__read_file(os.path.join(wikitext2_unzipped, "wikitext-2", fname + ".tokens"))
-        elif "enwik" in fname:
-            # change file destination if desire to download it somewhere else
-            file_dest = os.path.join(f_dest)
-            enwik9_path = os.path.join(file_dest, "enwik9")
-            # check if file not already exists
-            if not os.path.isfile(enwik9_path):
-                zipfile.ZipFile(
-                    io.BytesIO(requests.get(fname_to_url["enwik9"], stream=True).content)).extractall(file_dest)
-
-            train_offset = 9*10**7
-            valid_offset = train_offset + 5*10**6
-            test_offset = valid_offset + 5*10**6
-            enwik = self.__read_file(enwik9_path)
-            if "train" in fname:
-                self.data = enwik[:train_offset]  # first 90 million for training
-            elif "valid" in fname:
-                self.data = enwik[train_offset: valid_offset]  # 5 million for valid
-            elif "test" in fname:
-                self.data = enwik[valid_offset: test_offset]  # 5 million for test
-
+        self.data = self.__get_dataset(f_dest, fname)
         vocab = sorted(set(self.data))
         self.char2idx = {u:i for i,u in enumerate(vocab)}
         self.idx2char = np.array(vocab)
@@ -68,6 +43,37 @@ class Dataset:
     def map(self, function):
         self.data = self.data.map(function)
         return self
+
+    def __get_dataset(self, f_dest, fname):
+        if "ptb" in fname:
+            data = self.__read_file(tf.keras.utils.get_file(fname + ".txt", fname_to_url[fname]))
+        elif "wiki" in fname:
+            wikitext2_unzipped = tf.keras.utils.get_file("wikitext-2-v1", fname_to_url["wikitext-2-v1"], extract=True,
+                                                         archive_format='zip')
+            wikitext2_unzipped = wikitext2_unzipped.replace("\\wikitext-2-v1",
+                                                            '')  # this is because the extracted folder name is different than zipped folder
+            data = self.__read_file(os.path.join(wikitext2_unzipped, "wikitext-2", fname + ".tokens"))
+        elif "enwik" in fname:
+            # change file destination if desire to download it somewhere else
+            file_dest = os.path.join(f_dest)
+            enwik9_path = os.path.join(file_dest, "enwik9")
+            # check if file not already exists
+            if not os.path.isfile(enwik9_path):
+                zipfile.ZipFile(
+                    io.BytesIO(requests.get(fname_to_url["enwik9"], stream=True).content)).extractall(file_dest)
+
+            train_offset = 9 * 10 ** 7
+            valid_offset = train_offset + 5 * 10 ** 6
+            test_offset = valid_offset + 5 * 10 ** 6
+            enwik = self.__read_file(enwik9_path)
+            if "train" in fname:
+                data = enwik[:train_offset]  # first 90 million for training
+            elif "valid" in fname:
+                data = enwik[train_offset: valid_offset]  # 5 million for valid
+            elif "test" in fname:
+                data = enwik[valid_offset: test_offset]  # 5 million for test
+
+        return data
 
     def __read_file(self, path):
         with open(path, encoding='utf8') as fo:
