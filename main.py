@@ -9,8 +9,8 @@ physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
 
 def main():
-
     # Load datasets
+
     # ptb_char_train = Dataset("ptb.char.train")
     # ptb_char_valid = Dataset("ptb.char.valid")
     ptb_word_train = Dataset("ptb.train")
@@ -41,7 +41,7 @@ def main():
     batch_size = 64
     seq_length = 70
     buffer_size = 10000
-    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size)
+    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size, tie_embedding=True)
     ptb_word_train.convert_text_to_int(). \
         convert_to_tensor_dataset(). \
         batch(seq_length + 1, drop_remainder=True). \
@@ -66,8 +66,20 @@ def main():
     # print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
     # print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
+    print(lstm_baseline.model.summary())
+
+    # for input_example_batch, target_example_batch in ptb_word_train.data.take(2):
+    #     # print(tf.shape(lstm_baseline.model(input_example_batch)))
+    #     # print(lstm_baseline.model(input_example_batch))
+    #     lstm_baseline.model(input_example_batch)
+
+    # print("weight matrix for input embedding: {}".format(lstm_baseline.model.layers[0].weights[0]))
+    # print(len(lstm_baseline.model.layers[-1].weights)) # seems like there's an extra copy of input embedding weight matrix, length returned 3 instead of 2
+    # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[0], lstm_baseline.model.layers[0].weights[0])))
+    # print(lstm_baseline.model.layers[-1].weights[1])
+
     optimizer = tf.keras.optimizers.Adam()
-    fit(lstm_baseline.model, ptb_word_train.data, optimizer)
+    # fit(lstm_baseline.model, ptb_word_train.data, optimizer)
 
     # d = 100
     # m = d
@@ -136,6 +148,8 @@ def fit(model, dataset, optimizer):
         print('Epoch {} Loss {:.4f}'.format(epoch + 1, loss))
         print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
     model.save_weights(checkpoint_prefix.format(epoch=EPOCHS))
+    # check that the input embedding weight matrix is the same as the weight matrix in last dense layer
+    # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[0], lstm_baseline.model.layers[0].weights[0])))
 
 if __name__ == '__main__':
     main()
