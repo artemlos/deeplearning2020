@@ -114,7 +114,7 @@ def train_step(inp, target, model, optimizer):
         loss = tf.exp(tf.reduce_mean(
             tf.keras.losses.sparse_categorical_crossentropy(
                 target, predictions, from_logits=True)))
-    grads = tape.gradient(loss, model.trainable_variables)
+    grads, _ = tf.clip_by_global_norm(tape.gradient(loss, model.trainable_variables), 10.0)
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
     return loss

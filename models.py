@@ -16,14 +16,11 @@ class TiedDense(tf.keras.layers.Dense):
         # self.constraint = constraint
 
     def build(self, input_shape):
-        # self.kernel = self.input_embedding_layer.embeddings
         self.b = self.add_weight(shape=(self.units,),
                                  name='bias',
                                  initializer=self.bias_initializer,
                                  regularizer=self.bias_regularizer,
                                  constraint=self.bias_constraint)
-
-        # self._non_trainable_weights.append(self.kernel)  # the input embedding weight should not be further trained i think
 
     def call(self, inputs):
         output = tf.matmul(inputs, tf.transpose(self.input_embedding_layer.embeddings)) + self.b
