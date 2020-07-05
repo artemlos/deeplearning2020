@@ -49,6 +49,8 @@ def main():
         shuffle(buffer_size). \
         batch(batch_size, drop_remainder=True)
 
+    # print(lstm_baseline.model.summary())
+
     # for input_example_batch, target_example_batch in ptb_word_train.data.take(1):
     #     print(tf.shape(input_example_batch))
     #     print(target_example_batch)
@@ -66,8 +68,6 @@ def main():
     # print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
     # print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
-    print(lstm_baseline.model.summary())
-
     # for input_example_batch, target_example_batch in ptb_word_train.data.take(2):
     #     # print(tf.shape(lstm_baseline.model(input_example_batch)))
     #     # print(lstm_baseline.model(input_example_batch))
@@ -75,11 +75,14 @@ def main():
 
     # print("weight matrix for input embedding: {}".format(lstm_baseline.model.layers[0].weights[0]))
     # print(len(lstm_baseline.model.layers[-1].weights)) # seems like there's an extra copy of input embedding weight matrix, length returned 3 instead of 2
-    # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[0], lstm_baseline.model.layers[0].weights[0])))
+    # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[1], lstm_baseline.model.layers[0].weights[0])))
+    # print(lstm_baseline.model.layers[-1].weights[0])
     # print(lstm_baseline.model.layers[-1].weights[1])
+    # lstm_baseline.model.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
 
     optimizer = tf.keras.optimizers.Adam()
-    # fit(lstm_baseline.model, ptb_word_train.data, optimizer)
+    fit(lstm_baseline.model, ptb_word_train.data, optimizer)
+
 
     # d = 100
     # m = d
@@ -108,9 +111,9 @@ def loss(labels, logits):
 def train_step(inp, target, model, optimizer):
     with tf.GradientTape() as tape:
         predictions = model(inp)
-        loss = tf.reduce_mean(
+        loss = tf.exp(tf.reduce_mean(
             tf.keras.losses.sparse_categorical_crossentropy(
-                target, predictions, from_logits=True))
+                target, predictions, from_logits=True)))
     grads = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
@@ -120,7 +123,7 @@ def fit(model, dataset, optimizer):
     # Directory where the checkpoints will be saved
     checkpoint_dir = './training_checkpoints'
     # Name of the checkpoint files
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}.h5")
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_prefix,
         save_weights_only=True)
@@ -149,7 +152,7 @@ def fit(model, dataset, optimizer):
         print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
     model.save_weights(checkpoint_prefix.format(epoch=EPOCHS))
     # check that the input embedding weight matrix is the same as the weight matrix in last dense layer
-    # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[0], lstm_baseline.model.layers[0].weights[0])))
+    print(tf.reduce_all(tf.equal(model.layers[-1].weights[1], model.layers[0].weights[0])))
 
 if __name__ == '__main__':
     main()
