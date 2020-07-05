@@ -80,8 +80,7 @@ def main():
     # print(lstm_baseline.model.layers[-1].weights[1])
     # lstm_baseline.model.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
 
-    optimizer = tf.keras.optimizers.Adam()
-    fit(lstm_baseline.model, ptb_word_train.data, optimizer)
+    fit(lstm_baseline.model, ptb_word_train.data)
 
 
     # d = 100
@@ -119,7 +118,7 @@ def train_step(inp, target, model, optimizer):
 
     return loss
 
-def fit(model, dataset, optimizer):
+def fit(model, dataset):
     # Directory where the checkpoints will be saved
     checkpoint_dir = './training_checkpoints'
     # Name of the checkpoint files
@@ -127,6 +126,7 @@ def fit(model, dataset, optimizer):
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_prefix,
         save_weights_only=True)
+    optimizer = tf.keras.optimizers.Adam(beta_1=0)
 
     # Training step
     EPOCHS = 10
