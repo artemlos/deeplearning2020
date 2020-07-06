@@ -49,29 +49,11 @@ def main():
         shuffle(buffer_size). \
         batch(batch_size, drop_remainder=True)
 
-    # print(lstm_baseline.model.summary())
-
-    # for input_example_batch, target_example_batch in ptb_word_train.data.take(1):
-    #     print(tf.shape(input_example_batch))
-    #     print(target_example_batch)
-    #     example_batch_predictions = lstm_baseline.lstm(input_example_batch)
-    #     print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
-    # print(lstm_baseline.model.summary())
-    # sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-    # sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-    # print(sampled_indices)
-    # print("Input: \n", repr("".join(ptb_word_train.idx2char[input_example_batch[0]])))
-    # print()
-    # print("Next Char Predictions: \n", repr("".join(ptb_word_train.idx2char[sampled_indices])))
-
-    # example_batch_loss = loss(target_example_batch, example_batch_predictions)
-    # print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-    # print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
     # for input_example_batch, target_example_batch in ptb_word_train.data.take(2):
     #     # print(tf.shape(lstm_baseline.model(input_example_batch)))
     #     # print(lstm_baseline.model(input_example_batch))
-    #     lstm_baseline.model(input_example_batch)
+    #     lstm_baseline(input_example_batch)
 
     # print("weight matrix for input embedding: {}".format(lstm_baseline.model.layers[0].weights[0]))
     # print(len(lstm_baseline.model.layers[-1].weights)) # seems like there's an extra copy of input embedding weight matrix, length returned 3 instead of 2
@@ -79,8 +61,9 @@ def main():
     # print(lstm_baseline.model.layers[-1].weights[0])
     # print(lstm_baseline.model.layers[-1].weights[1])
     # lstm_baseline.model.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
+    # print(lstm_baseline.summary())
 
-    fit(lstm_baseline.model, ptb_word_train.data)
+    fit(lstm_baseline, ptb_word_train.data)
 
 
     # d = 100
@@ -133,10 +116,6 @@ def fit(model, dataset):
     for epoch in range(EPOCHS):
         start = time.time()
 
-        # initializing the hidden state at the start of every epoch
-        # initally hidden is None
-        hidden = model.reset_states()
-
         for (batch_n, (inp, target)) in enumerate(dataset):
             loss = train_step(inp, target, model, optimizer)
 
@@ -150,6 +129,11 @@ def fit(model, dataset):
 
         print('Epoch {} Loss {:.4f}'.format(epoch + 1, loss))
         print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+
+        # reset the hidden state at the end of every epoch
+        # initially hidden is None
+        hidden = model.reset_states()
+
     model.save_weights(checkpoint_prefix.format(epoch=EPOCHS))
     # check that the input embedding weight matrix is the same as the weight matrix in last dense layer
     print(tf.reduce_all(tf.equal(model.layers[-1].weights[1], model.layers[0].weights[0])))
