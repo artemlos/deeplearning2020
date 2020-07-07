@@ -4,6 +4,7 @@ from mogrifier import mogrify, matrix_decomposition
 from datasets import Dataset, split_input_target
 import time
 import os
+from tqdm import tqdm
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
@@ -41,7 +42,7 @@ def main():
     batch_size = 64
     seq_length = 70
     buffer_size = 10000
-    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size, tie_embedding=True)
+    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size, tie_embedding=True, skip_connection=True)
     ptb_word_train.convert_text_to_int(). \
         convert_to_tensor_dataset(). \
         batch(seq_length + 1, drop_remainder=True). \
@@ -51,7 +52,7 @@ def main():
 
 
     # for input_example_batch, target_example_batch in ptb_word_train.data.take(2):
-    #     # print(tf.shape(lstm_baseline.model(input_example_batch)))
+    #     print(tf.shape(lstm_baseline(input_example_batch)))
     #     # print(lstm_baseline.model(input_example_batch))
     #     lstm_baseline(input_example_batch)
 
@@ -60,10 +61,10 @@ def main():
     # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[1], lstm_baseline.model.layers[0].weights[0])))
     # print(lstm_baseline.model.layers[-1].weights[0])
     # print(lstm_baseline.model.layers[-1].weights[1])
-    # lstm_baseline.model.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
+    # lstm_baseline.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
     # print(lstm_baseline.summary())
 
-    fit(lstm_baseline, ptb_word_train.data)
+    # fit(lstm_baseline, ptb_word_train.data)
 
 
     # d = 100
@@ -113,8 +114,7 @@ def fit(model, dataset):
 
     # Training step
     EPOCHS = 10
-    for epoch in range(EPOCHS):
-        start = time.time()
+    for epoch in tqdm(range(EPOCHS)):
 
         for (batch_n, (inp, target)) in enumerate(dataset):
             loss = train_step(inp, target, model, optimizer)
@@ -128,7 +128,6 @@ def fit(model, dataset):
             model.save_weights(checkpoint_prefix.format(epoch=epoch))
 
         print('Epoch {} Loss {:.4f}'.format(epoch + 1, loss))
-        print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
         # reset the hidden state at the end of every epoch
         # initially hidden is None

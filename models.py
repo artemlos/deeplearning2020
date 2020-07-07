@@ -40,22 +40,10 @@ class LSTMBaseLine(tf.keras.Model):
         self.skip_connection = skip_connection
 
         # model architecture
-        self.input_embedding = tf.keras.layers.Embedding(vocab_size, self.embedding_dim,
-                                                         batch_input_shape=[self.batch_size, None])
-        self.lstm_layer1 = tf.keras.layers.LSTM(self.rnn_units,
-                                                return_sequences=True,
-                                                stateful=True,
-                                                recurrent_initializer='glorot_uniform')
-        self.lstm_layer2 = tf.keras.layers.LSTM(self.hidden_state_last,
-                                                return_sequences=True,
-                                                stateful=True,
-                                                recurrent_initializer='glorot_uniform')
-        if skip_connection:
-            # dimension aligning layer to make additive skip connection work, otherwise dimensions don't align for the operation
-            self.lstm_layer_dimens_aligning = tf.keras.layers.LSTM(self.lstm_layer2.units,
-                                                                   return_sequences=True,
-                                                                   stateful=True,
-                                                                   recurrent_initializer='glorot_uniform')
+        self.input_embedding = tf.keras.layers.Embedding(vocab_size, self.embedding_dim, batch_input_shape=[self.batch_size, None])
+        self.lstm_layer1 = tf.keras.layers.LSTM(self.rnn_units, return_sequences=True, stateful=True, recurrent_initializer='glorot_uniform')
+        self.lstm_layer2 = tf.keras.layers.LSTM(self.rnn_units, return_sequences=True, stateful=True, recurrent_initializer='glorot_uniform')
+        self.linear_projection_layer = tf.keras.layers.Dense(self.embedding_dim)
         if tie_embedding:
             self.tied_dense = TiedDense(vocab_size, self.input_embedding)
         else:
@@ -66,16 +54,12 @@ class LSTMBaseLine(tf.keras.Model):
 
         lstm_layer1_output = self.lstm_layer1(x)
 
-        if self.skip_connection:
-            # align the dimens for lstm_layer1_output with output from lstm_layer_2
-            lstm_layer_1_output_resized = self.lstm_layer_dimens_aligning(lstm_layer1_output)
-
         lstm_layer2_output = self.lstm_layer2(lstm_layer1_output)
-
         if self.skip_connection:
-            lstm_layer2_output = tf.keras.layers.add([lstm_layer2_output, lstm_layer_1_output_resized])
+            lstm_layer2_output = tf.keras.layers.add([lstm_layer2_output, lstm_layer1_output])
+        lstm_layer2_output_projected = self.linear_projection_layer(lstm_layer2_output)
 
         if self.tie_embedding:
-            return self.tied_dense(lstm_layer2_output)
+            return self.tied_dense(lstm_layer2_output_projected)
 
-        return self.dense(lstm_layer2_output)
+        return self.dense(lstm_layer2_output_projected)
