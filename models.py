@@ -11,9 +11,6 @@ class TiedDense(tf.keras.layers.Dense):
         super(TiedDense, self).__init__(output_dim, **kwargs)
         self.input_embedding_layer = input_embedding_layer
         self.activation = activation
-        # self.initializer = initializer
-        # self.bias_regularizer = regularizer
-        # self.constraint = constraint
 
     def build(self, input_shape):
         self.b = self.add_weight(shape=(self.units,),
@@ -29,10 +26,9 @@ class TiedDense(tf.keras.layers.Dense):
         return output
 
 
-class LSTMBaseLine(object):
-    def __init__(self, vocab_size, sequence_length, batch_size, tie_embedding=False):
-        # model parameters
-        self.depth = 2
+class LSTMBaseLine(tf.keras.Model):
+    def __init__(self, vocab_size, sequence_length, batch_size, tie_embedding=False, skip_connection=False):
+        super(LSTMBaseLine, self).__init__()
         self.hidden_states = 64
         self.embedding_dim = 256
         # this is needed to make the input embedding weight matrix compatible with the matrix multiplication of the input in the tied dense layer
@@ -40,40 +36,30 @@ class LSTMBaseLine(object):
         self.rnn_units = 1024
         self.batch_size = batch_size
         self.seq_length = sequence_length
+        self.tie_embedding = tie_embedding
+        self.skip_connection = skip_connection
 
-        self.model = self.build_model(vocab_size, tie_embedding)
-
-    def build_model(self, vocab_size, tie_embedding):
-        model = tf.keras.Sequential()
-        input_embedding = tf.keras.layers.Embedding(vocab_size, self.embedding_dim, batch_input_shape=[self.batch_size, None])
-        model.add(input_embedding)
-        for i in range(self.depth):
-            if i < self.depth - 1:
-                model.add(tf.keras.layers.LSTM(self.hidden_states,
-                                               return_sequences=True,
-                                               # return_state=True,
-                                               stateful=True,
-                                               recurrent_initializer='glorot_uniform'))
-            else:
-                # Usually last layer of LSTM should return only the last output for each input sequence
-                # (a 2D tensor of shape (batch_size, output_features))
-                # However, for char/word prediction we need output from each time step to know what the predicted
-                # words or characters were of given sequence length, so we need (batch_size, seq_length, output_features)
-                model.add(tf.keras.layers.LSTM(self.hidden_state_last,
-                                               return_sequences=True,
-                                               stateful=True,
-                                               recurrent_initializer='glorot_uniform'))
+        # model architecture
+        self.input_embedding = tf.keras.layers.Embedding(vocab_size, self.embedding_dim, batch_input_shape=[self.batch_size, None])
+        self.lstm_layer1 = tf.keras.layers.LSTM(self.rnn_units, return_sequences=True, stateful=True, recurrent_initializer='glorot_uniform')
+        self.lstm_layer2 = tf.keras.layers.LSTM(self.rnn_units, return_sequences=True, stateful=True, recurrent_initializer='glorot_uniform')
+        self.linear_projection_layer = tf.keras.layers.Dense(self.embedding_dim)
         if tie_embedding:
-            model.add(TiedDense(vocab_size, input_embedding))
+            self.tied_dense = TiedDense(vocab_size, self.input_embedding)
         else:
-            model.add(tf.keras.layers.Dense(vocab_size))
+            self.dense = tf.keras.layers.Dense(vocab_size)
 
-        return model
+    def call(self, inputs, **kwargs):
+        x = self.input_embedding(inputs)
 
-    # def forward(self, x, state=None):
-    #     # x, h_prev = self.mogrify(x, )
-    #     res = self.model(x, initial_state=None)
-    #     return res
+        lstm_layer1_output = self.lstm_layer1(x)
 
-    # def __call__(self, x):
-    #     return
+        lstm_layer2_output = self.lstm_layer2(lstm_layer1_output)
+        if self.skip_connection:
+            lstm_layer2_output = tf.keras.layers.add([lstm_layer2_output, lstm_layer1_output])
+        lstm_layer2_output_projected = self.linear_projection_layer(lstm_layer2_output)
+
+        if self.tie_embedding:
+            return self.tied_dense(lstm_layer2_output_projected)
+
+        return self.dense(lstm_layer2_output_projected)

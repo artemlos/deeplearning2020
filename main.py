@@ -4,6 +4,7 @@ from mogrifier import mogrify, matrix_decomposition
 from datasets import Dataset, split_input_target
 import time
 import os
+from tqdm import tqdm
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
@@ -41,7 +42,7 @@ def main():
     batch_size = 64
     seq_length = 70
     buffer_size = 10000
-    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size, tie_embedding=True)
+    lstm_baseline = models.LSTMBaseLine(len(ptb_word_train.char2idx), seq_length, batch_size, tie_embedding=True, skip_connection=True)
     ptb_word_train.convert_text_to_int(). \
         convert_to_tensor_dataset(). \
         batch(seq_length + 1, drop_remainder=True). \
@@ -49,38 +50,21 @@ def main():
         shuffle(buffer_size). \
         batch(batch_size, drop_remainder=True)
 
-    # print(lstm_baseline.model.summary())
-
-    # for input_example_batch, target_example_batch in ptb_word_train.data.take(1):
-    #     print(tf.shape(input_example_batch))
-    #     print(target_example_batch)
-    #     example_batch_predictions = lstm_baseline.lstm(input_example_batch)
-    #     print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
-    # print(lstm_baseline.model.summary())
-    # sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-    # sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-    # print(sampled_indices)
-    # print("Input: \n", repr("".join(ptb_word_train.idx2char[input_example_batch[0]])))
-    # print()
-    # print("Next Char Predictions: \n", repr("".join(ptb_word_train.idx2char[sampled_indices])))
-
-    # example_batch_loss = loss(target_example_batch, example_batch_predictions)
-    # print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-    # print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
     # for input_example_batch, target_example_batch in ptb_word_train.data.take(2):
-    #     # print(tf.shape(lstm_baseline.model(input_example_batch)))
+    #     print(tf.shape(lstm_baseline(input_example_batch)))
     #     # print(lstm_baseline.model(input_example_batch))
-    #     lstm_baseline.model(input_example_batch)
+    #     lstm_baseline(input_example_batch)
 
     # print("weight matrix for input embedding: {}".format(lstm_baseline.model.layers[0].weights[0]))
     # print(len(lstm_baseline.model.layers[-1].weights)) # seems like there's an extra copy of input embedding weight matrix, length returned 3 instead of 2
     # print(tf.reduce_all(tf.equal(lstm_baseline.model.layers[-1].weights[1], lstm_baseline.model.layers[0].weights[0])))
     # print(lstm_baseline.model.layers[-1].weights[0])
     # print(lstm_baseline.model.layers[-1].weights[1])
-    # lstm_baseline.model.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
+    # lstm_baseline.load_weights(os.path.join('training_checkpoints', 'ckpt_10.h5'))
+    # print(lstm_baseline.summary())
 
-    fit(lstm_baseline.model, ptb_word_train.data)
+    # fit(lstm_baseline, ptb_word_train.data)
 
 
     # d = 100
@@ -130,12 +114,7 @@ def fit(model, dataset):
 
     # Training step
     EPOCHS = 10
-    for epoch in range(EPOCHS):
-        start = time.time()
-
-        # initializing the hidden state at the start of every epoch
-        # initally hidden is None
-        hidden = model.reset_states()
+    for epoch in tqdm(range(EPOCHS)):
 
         for (batch_n, (inp, target)) in enumerate(dataset):
             loss = train_step(inp, target, model, optimizer)
@@ -149,7 +128,11 @@ def fit(model, dataset):
             model.save_weights(checkpoint_prefix.format(epoch=epoch))
 
         print('Epoch {} Loss {:.4f}'.format(epoch + 1, loss))
-        print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+
+        # reset the hidden state at the end of every epoch
+        # initially hidden is None
+        hidden = model.reset_states()
+
     model.save_weights(checkpoint_prefix.format(epoch=EPOCHS))
     # check that the input embedding weight matrix is the same as the weight matrix in last dense layer
     print(tf.reduce_all(tf.equal(model.layers[-1].weights[1], model.layers[0].weights[0])))
