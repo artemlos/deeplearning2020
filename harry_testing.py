@@ -64,12 +64,12 @@ def train(model):
 
     checkpoint_dir = "run"
     csv_logger = tf.keras.callbacks.CSVLogger(
-        os.path.join(checkpoint_dir, "log.csv"))  # to save epoch results in csv file
+        os.path.join(checkpoint_dir, "log2.csv"))  # to save epoch results in csv file
     model.fit(X_train_normal, X_train_normal, epochs=100, verbose=1, shuffle=True,
               validation_split=0.05, callbacks=[csv_logger])
 
     # important to change file name for new model configs, so we dont overwrite existing files
-    model.save_weights(os.path.join(checkpoint_dir, "final_weights.h5"))
+    model.save_weights(os.path.join(checkpoint_dir, "final_weights2.h5"))
 
     ### Apply model on train
 
@@ -142,11 +142,12 @@ def plot_results(model):
         print(accurracy, "accurracy")
 
 
-    print("Compute metrics with {} error threshold\n".format(error_threshold))
+    print("Compute metrics with {} error threshold".format(error_threshold))
     compute_metrics(error_threshold)
 
+    print()
     max_error_threshold = np.max(train_mae_loss)
-    print("Compute metrics with {} error threshold\n".format(max_error_threshold))
+    print("Compute metrics with {} error threshold".format(max_error_threshold))
     compute_metrics(max_error_threshold)
 
 def main():
@@ -157,7 +158,7 @@ def main():
     load_weights = False
 
     if load_weights:
-        model.load_weights(os.path.join("run", "final_weights.h5"))
+        model.load_weights(os.path.join("run", "final_weights1.h5"))
     else:
         model = train(model)
 
