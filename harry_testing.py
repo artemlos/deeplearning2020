@@ -4,12 +4,15 @@ import os
 from matplotlib import pyplot as plt
 import tensorflow as tf
 
+use_gpu = False
+
 # use gpu
-physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
-# print(tf.config.list_physical_devices('GPU'))
-print("GPU built with CUDA: %s" % tf.test.is_built_with_cuda())
-print(tf.reduce_sum(tf.random.normal([1000, 1000])))
+if use_gpu:
+    physical_devices = tf.config.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
+    # print(tf.config.list_physical_devices('GPU'))
+    print("GPU built with CUDA: %s" % tf.test.is_built_with_cuda())
+    print(tf.reduce_sum(tf.random.normal([1000, 1000])))
 
 
 # load data
@@ -112,7 +115,7 @@ def plot_results(model):
     x_anomaly4_pred = model.predict(X_test_anomaly4)
     anomaly4_mae_loss = np.mean(np.abs(x_anomaly4_pred - X_test_anomaly4), axis=1)
 
-    error_threshold = 0.15
+    error_threshold = 0.03
 
 
     # test set with normal samples
@@ -155,7 +158,7 @@ def main():
     model.summary()
     model.compile(optimizer='adam', loss='mae', metrics=None)
 
-    load_weights = False
+    load_weights = True
 
     if load_weights:
         model.load_weights(os.path.join("run", "final_weights1.h5"))
