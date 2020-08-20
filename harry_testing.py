@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 import tensorflow as tf
 
 use_gpu = False
+model_prefix = "_deep"
+epoches = 100
 
 # use gpu
 if use_gpu:
@@ -56,6 +58,76 @@ def LSTM_AE(input_shape):
 
     return sequence_autoencoder
 
+def LSTM_AE_Deep(input_shape):
+
+    """
+    Input shape = (data_dim, number_of_features)
+
+    Returns both the autoencoder and just the encoder.
+    """
+
+    inputs = tf.keras.Input(shape=input_shape)
+    encoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(inputs)
+    encoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=True)(encoded)
+    encoded = tf.keras.layers.LSTM(8, activation='tanh', return_sequences=False)(encoded)
+
+    decoded = tf.keras.layers.RepeatVector(input_shape[0])(encoded)
+    decoded = tf.keras.layers.LSTM(8, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(input_shape[1]))(decoded)
+
+    sequence_autoencoder = tf.keras.Model(inputs, decoded)
+
+    return sequence_autoencoder
+
+def LSTM_AE_Deep_v2(input_shape):
+
+    """
+    Input shape = (data_dim, number_of_features)
+
+    Returns both the autoencoder and just the encoder.
+    """
+
+    inputs = tf.keras.Input(shape=input_shape)
+    encoded = tf.keras.layers.LSTM(64, activation='tanh', return_sequences=True)(inputs)
+    encoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(encoded)
+    encoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=False)(encoded)
+
+    decoded = tf.keras.layers.RepeatVector(input_shape[0])(encoded)
+    decoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(64, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(input_shape[1]))(decoded)
+
+    sequence_autoencoder = tf.keras.Model(inputs, decoded)
+
+    return sequence_autoencoder
+
+def LSTM_AE_Deep_v3(input_shape):
+
+    """
+    Input shape = (data_dim, number_of_features)
+
+    Returns both the autoencoder and just the encoder.
+    """
+
+    inputs = tf.keras.Input(shape=input_shape)
+    encoded = tf.keras.layers.LSTM(128, activation='tanh', return_sequences=True)(inputs)
+    encoded = tf.keras.layers.LSTM(64, activation='tanh', return_sequences=True)(encoded)
+    encoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(encoded)
+    encoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=False)(encoded)
+
+    decoded = tf.keras.layers.RepeatVector(input_shape[0])(encoded)
+    decoded = tf.keras.layers.LSTM(16, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(32, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(64, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.LSTM(128, activation='tanh', return_sequences=True)(decoded)
+    decoded = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(input_shape[1]))(decoded)
+
+    sequence_autoencoder = tf.keras.Model(inputs, decoded)
+
+    return sequence_autoencoder
 
 def train(model):
 
@@ -67,12 +139,12 @@ def train(model):
 
     checkpoint_dir = "run"
     csv_logger = tf.keras.callbacks.CSVLogger(
-        os.path.join(checkpoint_dir, "log2.csv"))  # to save epoch results in csv file
-    model.fit(X_train_normal, X_train_normal, epochs=100, verbose=1, shuffle=True,
+        os.path.join(checkpoint_dir, "log" + model_prefix + ".csv"))  # to save epoch results in csv file
+    model.fit(X_train_normal, X_train_normal, epochs=epoches, verbose=1, shuffle=True,
               validation_split=0.05, callbacks=[csv_logger])
 
     # important to change file name for new model configs, so we dont overwrite existing files
-    model.save_weights(os.path.join(checkpoint_dir, "final_weights2.h5"))
+    model.save_weights(os.path.join(checkpoint_dir, "final_weights" + model_prefix + ".h5"))
 
     ### Apply model on train
 
@@ -89,9 +161,11 @@ def plot_results(model):
     plt.ylabel("No of samples")
     plt.show()
 
-    print(np.max(train_mae_loss))
+    print("max training mae loss: %s" % np.max(train_mae_loss))
 
-    # print(model.evaluate(X_train_normal,X_train_normal, verbose=3))
+    # you should manually choose or use some heurestics to determine a proper error_threshold
+    error_threshold = model.evaluate(X_train_normal,X_train_normal, verbose=3)
+    print("Chosen error threshold: %s" % error_threshold)
     # print(model.evaluate(X_train_anomaly2,X_train_anomaly2, verbose=3))
     # print(model.evaluate(X_train_anomaly3,X_train_anomaly3, verbose=3))
     # print(model.evaluate(X_train_anomaly4,X_train_anomaly4, verbose=3))
@@ -115,10 +189,6 @@ def plot_results(model):
     x_anomaly4_pred = model.predict(X_test_anomaly4)
     anomaly4_mae_loss = np.mean(np.abs(x_anomaly4_pred - X_test_anomaly4), axis=1)
 
-    error_threshold = 0.03
-
-
-    # test set with normal samples
     # "positive" means it's normal. "negative" means there is an anomaly.
     def compute_metrics(error_threshold):
         FN = len(normal_mae_loss[normal_mae_loss >= error_threshold])
@@ -143,25 +213,38 @@ def plot_results(model):
         print(recall, "recall")
         print(F1_score, "F1 score")
         print(accurracy, "accurracy")
+        print(error_threshold, "error_threshold")
 
+        content = "Precision: %s\nRecall: %s\nF1_score: %s\nAccuracy: %s\nError_threshold: %s" \
+                  % (precision, recall, F1_score, accurracy, error_threshold)
+        return content
 
     print("Compute metrics with {} error threshold".format(error_threshold))
-    compute_metrics(error_threshold)
+    content = compute_metrics(error_threshold)
+    write_to_file(os.path.join("run", "error_metrics_proper_error" + model_prefix), content)
 
     print()
     max_error_threshold = np.max(train_mae_loss)
     print("Compute metrics with {} error threshold".format(max_error_threshold))
-    compute_metrics(max_error_threshold)
+    content = compute_metrics(max_error_threshold)
+    write_to_file(os.path.join("run", "error_metrics_max_error" + model_prefix), content)
+
+def write_to_file(file_path, content):
+    with open(file_path, "w", encoding='utf-8') as f:
+        f.write(content)
 
 def main():
-    model = LSTM_AE((186, 1))
+    input_shape = (186,1)
+    # model = LSTM_AE(input_shape)
+    model = LSTM_AE_Deep(input_shape)
     model.summary()
     model.compile(optimizer='adam', loss='mae', metrics=None)
 
-    load_weights = True
+    load_weights = False
+    model_prefix_to_load = "1"  # change this to whichever version you want to load
 
     if load_weights:
-        model.load_weights(os.path.join("run", "final_weights1.h5"))
+        model.load_weights(os.path.join("run", "final_weights" + model_prefix_to_load + ".h5"))
     else:
         model = train(model)
 
