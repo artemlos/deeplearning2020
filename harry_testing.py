@@ -152,7 +152,7 @@ def train(model):
     return model
 
 
-def plot_results(model):
+def plot_error_metrics(model):
     # We will now compute the the loss for each class on the train set. This will guide us in setting a decision boundary, that we can later use on the test set.
     x_train_pred = model.predict(X_train_normal)
     train_mae_loss = np.mean(np.abs(x_train_pred - X_train_normal), axis=1)
@@ -160,6 +160,7 @@ def plot_results(model):
     plt.hist(train_mae_loss, bins=10)
     plt.xlabel("Train MAE loss")
     plt.ylabel("No of samples")
+    plt.savefig("Train_mae_loss" + model_prefix + ".png")
     plt.show()
 
     print("max training mae loss: %s" % np.max(train_mae_loss))
@@ -222,13 +223,28 @@ def plot_results(model):
 
     print("Compute metrics with {} error threshold".format(error_threshold))
     content = compute_metrics(error_threshold)
-    #write_to_file(os.path.join("run", "error_metrics_proper_error" + model_prefix), content)
+    write_to_file(os.path.join("run", "error_metrics_proper_error" + model_prefix), content)
 
     print()
     max_error_threshold = np.max(train_mae_loss)
     print("Compute metrics with {} error threshold".format(max_error_threshold))
     content = compute_metrics(max_error_threshold)
-    #write_to_file(os.path.join("run", "error_metrics_max_error" + model_prefix), content)
+    write_to_file(os.path.join("run", "error_metrics_max_error" + model_prefix), content)
+
+
+def plot_loss():
+    headers = ["epoches", "training_loss", "validation_loss"]
+    df = pd.read_csv(os.path.join("run", "log" + model_prefix + ".csv"), names=headers)
+    training_loss = df["training_loss"].to_numpy()[1:].astype(np.float)
+    validation_loss = df["validation_loss"].to_numpy()[1:].astype(np.float)
+    plt.plot(training_loss, label="Training")
+    plt.plot(validation_loss, label="Validation")
+    plt.xlabel('Epoches')
+    plt.ylabel('Loss')
+    # plt.title('Loss')
+    plt.legend()
+    plt.savefig("loss" + model_prefix + ".png")
+    plt.show()
 
 
 def write_to_file(file_path, content):
@@ -253,7 +269,8 @@ def main():
     else:
         model = train(model)
 
-    plot_results(model)
+    plot_error_metrics(model)
+    plot_loss()
 
 
 main()
