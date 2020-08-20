@@ -3,9 +3,11 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 import tensorflow as tf
+import random
+import math
 
-use_gpu = False
-model_prefix = "_deep"
+use_gpu = True
+model_prefix = "_deep_v2"
 epoches = 100
 
 # use gpu
@@ -16,6 +18,11 @@ if use_gpu:
     print("GPU built with CUDA: %s" % tf.test.is_built_with_cuda())
     print(tf.reduce_sum(tf.random.normal([1000, 1000])))
 
+# Dataset
+# We use the ECG dataset available [here](https://www.kaggle.com/shayanfazeli/heartbeat/data?select=mitbih_train.csv). There is [an article](https://arxiv.org/pdf/1805.00794.pdf) that uses the dataset, which we can use as a reference. More details about the dataset can be found [here](https://physionet.org/content/apnea-ecg/1.0.0/)
+# 1. Train only on normal cases. --> determine average error.
+# 2. Use the error as the threshold for decisions
+# 3. Check if the error differs significantly for other classes.
 
 # load data
 train = pd.read_csv('datasets/mitbih_train.csv', low_memory=False, header=None)
@@ -58,8 +65,8 @@ def LSTM_AE(input_shape):
 
     return sequence_autoencoder
 
-def LSTM_AE_Deep(input_shape):
 
+def LSTM_AE_Deep(input_shape):
     """
     Input shape = (data_dim, number_of_features)
 
@@ -81,8 +88,8 @@ def LSTM_AE_Deep(input_shape):
 
     return sequence_autoencoder
 
-def LSTM_AE_Deep_v2(input_shape):
 
+def LSTM_AE_Deep_v2(input_shape):
     """
     Input shape = (data_dim, number_of_features)
 
@@ -104,8 +111,8 @@ def LSTM_AE_Deep_v2(input_shape):
 
     return sequence_autoencoder
 
-def LSTM_AE_Deep_v3(input_shape):
 
+def LSTM_AE_Deep_v3(input_shape):
     """
     Input shape = (data_dim, number_of_features)
 
@@ -129,14 +136,8 @@ def LSTM_AE_Deep_v3(input_shape):
 
     return sequence_autoencoder
 
+
 def train(model):
-
-    # Dataset
-    # We use the ECG dataset available [here](https://www.kaggle.com/shayanfazeli/heartbeat/data?select=mitbih_train.csv). There is [an article](https://arxiv.org/pdf/1805.00794.pdf) that uses the dataset, which we can use as a reference. More details about the dataset can be found [here](https://physionet.org/content/apnea-ecg/1.0.0/)
-    # 1. Train only on normal cases. --> determine average error.
-    # 2. Use the error as the threshold for decisions
-    # 3. Check if the error differs significantly for other classes.
-
     checkpoint_dir = "run"
     csv_logger = tf.keras.callbacks.CSVLogger(
         os.path.join(checkpoint_dir, "log" + model_prefix + ".csv"))  # to save epoch results in csv file
@@ -164,7 +165,7 @@ def plot_results(model):
     print("max training mae loss: %s" % np.max(train_mae_loss))
 
     # you should manually choose or use some heurestics to determine a proper error_threshold
-    error_threshold = model.evaluate(X_train_normal,X_train_normal, verbose=3)
+    error_threshold = model.evaluate(X_train_normal, X_train_normal, verbose=3)
     print("Chosen error threshold: %s" % error_threshold)
     # print(model.evaluate(X_train_anomaly2,X_train_anomaly2, verbose=3))
     # print(model.evaluate(X_train_anomaly3,X_train_anomaly3, verbose=3))
@@ -221,27 +222,31 @@ def plot_results(model):
 
     print("Compute metrics with {} error threshold".format(error_threshold))
     content = compute_metrics(error_threshold)
-    write_to_file(os.path.join("run", "error_metrics_proper_error" + model_prefix), content)
+    #write_to_file(os.path.join("run", "error_metrics_proper_error" + model_prefix), content)
 
     print()
     max_error_threshold = np.max(train_mae_loss)
     print("Compute metrics with {} error threshold".format(max_error_threshold))
     content = compute_metrics(max_error_threshold)
-    write_to_file(os.path.join("run", "error_metrics_max_error" + model_prefix), content)
+    #write_to_file(os.path.join("run", "error_metrics_max_error" + model_prefix), content)
+
 
 def write_to_file(file_path, content):
     with open(file_path, "w", encoding='utf-8') as f:
         f.write(content)
 
+
 def main():
-    input_shape = (186,1)
+    input_shape = (186, 1)
     # model = LSTM_AE(input_shape)
-    model = LSTM_AE_Deep(input_shape)
+    # model = LSTM_AE_Deep(input_shape)
+    model = LSTM_AE_Deep_v2(input_shape)
+    # model = LSTM_AE_Deep_v3(input_shape)
     model.summary()
     model.compile(optimizer='adam', loss='mae', metrics=None)
 
     load_weights = False
-    model_prefix_to_load = "1"  # change this to whichever version you want to load
+    model_prefix_to_load = "_deep"  # change this to whichever version you want to load
 
     if load_weights:
         model.load_weights(os.path.join("run", "final_weights" + model_prefix_to_load + ".h5"))
@@ -249,5 +254,6 @@ def main():
         model = train(model)
 
     plot_results(model)
+
 
 main()
